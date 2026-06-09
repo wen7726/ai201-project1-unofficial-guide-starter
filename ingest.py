@@ -1,19 +1,15 @@
+import re
 from pathlib import Path
 
 RAW_DIR = Path("data/raw")
 
-CHUNK_SIZE = 800
-OVERLAP = 100
-
 
 def load_documents():
     files = list(RAW_DIR.glob("*.txt"))
-
     documents = []
 
     for file in files:
         text = file.read_text(encoding="utf-8")
-
         documents.append({
             "source": file.name,
             "text": text
@@ -22,19 +18,27 @@ def load_documents():
     return documents
 
 
-def chunk_text(text, chunk_size=CHUNK_SIZE, overlap=OVERLAP):
+def chunk_text(text):
+    """
+    Split each document by Review sections.
+    This works better for review-style housing documents because each review
+    is usually one self-contained student experience.
+    """
+    parts = re.split(r"\n\s*Review\s+\d+\s*:", text)
+
+    header = parts[0].strip()
+    reviews = parts[1:]
+
     chunks = []
 
-    start = 0
+    for i, review in enumerate(reviews, start=1):
+        review = review.strip()
 
-    while start < len(text):
-        end = start + chunk_size
+        if len(review) < 40:
+            continue
 
-        chunk = text[start:end]
-
+        chunk = f"{header}\n\nReview {i}:\n{review}"
         chunks.append(chunk)
-
-        start += chunk_size - overlap
 
     return chunks
 
@@ -54,10 +58,11 @@ if __name__ == "__main__":
                 "text": chunk
             })
 
-    print(f"\nTotal chunks: {len(all_chunks)}")
+    print(f"Found {len(docs)} documents")
+    print(f"Total chunks: {len(all_chunks)}")
 
-    for chunk in all_chunks[:5]:
+    for chunk in all_chunks[:8]:
         print("\n" + "=" * 60)
         print(f"Source: {chunk['source']}")
         print(f"Chunk ID: {chunk['chunk_id']}")
-        print(chunk["text"][:500])
+        print(chunk["text"][:700])
